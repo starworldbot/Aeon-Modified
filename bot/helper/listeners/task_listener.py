@@ -241,7 +241,59 @@ class TaskListener(TaskConfig):
             self.files_to_proceed = []
             self.proceed_count = 0
             self.progress = True
+            
+        # New block for audio removal
+        if self.remove_audio:
+            up_path = await self.proceed_remove_audio(
+                up_path,
+                gid,
+            )
+            if self.is_cancelled:
+                return
+            self.is_file = await aiopath.isfile(up_path)
+            up_dir, self.name = up_path.rsplit("/", 1)
+            self.size = await get_path_size(up_dir)
+            self.subname = ""
+            self.subsize = 0
+            self.files_to_proceed = []
+            self.proceed_count = 0
+            self.progress = True
 
+        # New block for audio swapping
+        if self.swap_audio:
+            up_path = await self.proceed_swap_audio(
+                up_path,
+                self.new_audio_file,
+                gid,
+            )
+            if self.is_cancelled:
+                return
+            self.is_file = await aiopath.isfile(up_path)
+            up_dir, self.name = up_path.rsplit("/", 1)
+            self.size = await get_path_size(up_dir)
+            self.subname = ""
+            self.subsize = 0
+            self.files_to_proceed = []
+            self.proceed_count = 0
+            self.progress = True
+
+        # New block for auto-merging
+        if self.auto_merge and self.merge_files:
+            up_path = await self.proceed_auto_merge(
+                self.merge_files,
+                gid,
+            )
+            if self.is_cancelled:
+                return
+            self.is_file = await aiopath.isfile(up_path)
+            up_dir, self.name = up_path.rsplit("/", 1)
+            self.size = await get_path_size(up_dir)
+            self.subname = ""
+            self.subsize = 0
+            self.files_to_proceed = []
+            self.proceed_count = 0
+            self.progress = True
+            
         if self.name_sub:
             up_path = await self.substitute(up_path)
             if self.is_cancelled:
