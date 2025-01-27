@@ -15,6 +15,7 @@ SIZE_UNITS = ["B", "KB", "MB", "GB", "TB", "PB"]
 
 
 class MirrorStatus:
+    class MirrorStatus:
     STATUS_UPLOAD = "Uploading 📤"
     STATUS_DOWNLOAD = "Downloading 📥"
     STATUS_CLONE = "Cloning 🔃"
@@ -31,6 +32,9 @@ class MirrorStatus:
     STATUS_FFMPEG = "FFmpeg 🚀"
     STATUS_METADATA = "Metadata 🧾"
     STATUS_WATERMARK = "Watermark 🌊"
+    STATUS_AUDIO_REMOVE = "Removing Audio 🔇"
+    STATUS_AUDIO_SWAP = "Swapping Audio 🎶"
+    STATUS_AUTO_MERGE = "Auto Merging 🛠"
 
 
 STATUSES = {
@@ -49,8 +53,30 @@ STATUSES = {
     "FF": MirrorStatus.STATUS_FFMPEG,
     "PA": MirrorStatus.STATUS_PAUSED,
     "CK": MirrorStatus.STATUS_CHECK,
+    "RM": MirrorStatus.STATUS_AUDIO_REMOVE,
+    "SW": MirrorStatus.STATUS_AUDIO_SWAP,
+    "MG": MirrorStatus.STATUS_AUTO_MERGE,
 }
 
+def add_audio_task(task_dict, listener, gid, status):
+    """Add audio task (remove/swap/merge) to the task dictionary."""
+    task = {
+        "listener": listener,
+        "gid": gid,
+        "status": status,
+        "created": time(),
+    }
+    task_dict[gid] = task
+
+def remove_audio_task(gid):
+    """Remove an audio-related task."""
+    if gid in task_dict:
+        del task_dict[gid]
+
+def update_audio_task(gid, status):
+    """Update the status of an audio-related task."""
+    if gid in task_dict:
+        task_dict[gid]["status"] = status
 
 async def get_task_by_gid(gid: str):
     async with task_dict_lock:
@@ -200,6 +226,25 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
     #         else get_readable_time(elapse)
     #     )
     # user_tag = task.listener.tag.replace("@", "@").replace("_", "_")
+
+    if tstatus == MirrorStatus.STATUS_AUDIO_REMOVE:
+    msg += (
+        f"\n⌑ <b>Removing Audio:</b>"
+        f"\n⌑ <code>File:</code> {escape(task.name())}"
+        f"\n⌑ <code>Status:</code> {tstatus}"
+    )
+elif tstatus == MirrorStatus.STATUS_AUDIO_SWAP:
+    msg += (
+        f"\n⌑ <b>Swapping Audio:</b>"
+        f"\n⌑ <code>File:</code> {escape(task.name())}"
+        f"\n⌑ <code>Status:</code> {tstatus}"
+    )
+elif tstatus == MirrorStatus.STATUS_AUTO_MERGE:
+    msg += (
+        f"\n⌑ <b>Auto Merging Files:</b>"
+        f"\n⌑ <code>Files:</code> {escape(task.name())}"
+        f"\n⌑ <code>Status:</code> {tstatus}"
+    )
 
     for index, task in enumerate(
         tasks[start_position : STATUS_LIMIT + start_position],
