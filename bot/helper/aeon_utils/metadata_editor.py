@@ -194,3 +194,45 @@ async def add_attachment(file, attachment_path):
     os.replace(temp_file, file)
     LOGGER.info(f"Photo attachment added successfully to file: {file}")
     return
+    os.replace(temp_file_path, full_file_path)
+    LOGGER.info(f"Audio swapped successfully in file: {file}")
+    return file
+
+async def auto_merge(file_list, dirpath, output_file):
+    LOGGER.info("Merging multiple files into one.")
+    concat_file_path = os.path.join(dirpath, "file_list.txt")
+    output_file_path = os.path.join(dirpath, output_file)
+
+    # Create a text file listing all input files
+    with open(concat_file_path, "w") as f:
+        for file in file_list:
+            full_file_path = os.path.join(dirpath, file)
+            f.write(f"file '{full_file_path}'\n")
+
+    cmd = [
+        "xtra",
+        "-y",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        concat_file_path,
+        "-c",
+        "copy",
+        output_file_path,
+    ]
+
+    process = await create_subprocess_exec(*cmd, stderr=PIPE, stdout=PIPE)
+    stdout, stderr = await process.communicate()
+
+    if process.returncode != 0:
+        err = stderr.decode().strip()
+        LOGGER.error(err)
+        LOGGER.error("Error merging files.")
+        return None
+
+    os.remove(concat_file_path)  # Clean up temporary file
+    LOGGER.info(f"Files merged successfully into: {output_file}")
+    return output_file
+    
