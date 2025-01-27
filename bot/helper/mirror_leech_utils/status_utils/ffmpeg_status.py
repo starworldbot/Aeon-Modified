@@ -49,6 +49,12 @@ class FFmpegStatus:
         return get_readable_time(self._obj.eta_raw) if self._obj.eta_raw else "-"
 
     def status(self):
+        if self._cstatus == "Remove Audio":
+            return MirrorStatus.STATUS_AUDIO_REMOVE
+        if self._cstatus == "Swap Audio":
+            return MirrorStatus.STATUS_AUDIO_SWAP
+        if self._cstatus == "Auto Merge":
+            return MirrorStatus.STATUS_AUTO_MERGE
         if self._cstatus == "Convert":
             return MirrorStatus.STATUS_CONVERT
         if self._cstatus == "Split":
