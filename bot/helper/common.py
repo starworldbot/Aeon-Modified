@@ -120,6 +120,12 @@ class TaskConfig:
         self.extension_filter = []
         self.files_to_proceed = []
         self.is_super_chat = self.message.chat.type.name in ["SUPERGROUP", "CHANNEL"]
+         # New attributes for audio and merge tasks
+        self.remove_audio = False  # Flag for audio removal
+        self.swap_audio = False  # Flag for audio swapping
+        self.new_audio_file = ""  # File path for the new audio file (if swapping)
+        self.merge_files = []  # List of files to merge
+        self.auto_merge = False  # Flag for enabling auto-merge
 
     def get_token_path(self, dest):
         if dest.startswith("mtp:"):
@@ -1175,3 +1181,77 @@ class TaskConfig:
         if checked:
             cpu_eater_lock.release()
         return dl_path
+cpu_eater_lock = Lock()
+
+async def process_ffmpeg_tasks(dl_path, key, gid, ffmpeg, task_type, **kwargs):
+    "
+    Handles FFmpeg tasks like watermarking, audio removal, audio swapping, and merging. "
+
+ if task_type == "remove_audio":
+        # New audio removal handling
+        for dirpath, _, files in await sync_to_async(
+            walk, dl_path, topdown=False
+        ):
+            for file_ in files:
+                file_path = ospath.join(dirpath, file_)
+                if is_mkv(file_path):
+                    cmd, temp_file = await get_audio_remove_cmd(file_path)
+                    if cmd:
+                        if not checked:
+                            checked = True
+                            async with task_dict_lock:
+                                task_dict[gid] = FFmpegStatus(
+                                    None, ffmpeg, gid, "Remove Audio"
+                                )
+                            await cpu_eater_lock.acquire()
+                        LOGGER.info(f"Running remove audio cmd for: {file_path}")
+                        res = await ffmpeg.metadata_watermark_cmds(cmd, file_path)
+                        if res:
+                            replace(temp_file, file_path)
+
+    elif task_type == "swap_audio":
+        # New audio swapping handling
+        new_audio_file = kwargs.get("new_audio_file")
+        if not new_audio_file:
+            raise ValueError("No new audio file provided for audio swap.")
+        for dirpath, _, files in await sync_to_async(
+            walk, dl_path, topdown=False
+        ):
+            for file_ in files:
+                file_path = ospath.join(dirpath, file_)
+                if is_mkv(file_path):
+                    cmd, temp_file = await get_audio_swap_cmd(file_path, new_audio_file)
+                    if cmd:
+                        if not checked:
+                            checked = True
+                            async with task_dict_lock:
+                                task_dict[gid] = FFmpegStatus(
+                                    None, ffmpeg, gid, "Swap Audio"
+                                )
+                            await cpu_eater_lock.acquire()
+                        LOGGER.info(f"Running swap audio cmd for: {file_path}")
+                        res = await ffmpeg.metadata_watermark_cmds(cmd, file_path)
+                        if res:
+                            replace(temp_file, file_path)
+  elif task_type == "merge":
+        # New merging handling
+        input_files = kwargs.get("input_files")
+        if not input_files or not isinstance(input_files, list):
+            raise ValueError("Invalid input files provided for merging.")
+        cmd, temp_file = await get_merge_cmd(input_files)
+        if cmd:
+            if not checked:
+                checked = True
+                async with task_dict_lock:
+                    task_dict[gid] = FFmpegStatus(
+                        None, ffmpeg, gid, "Merge"
+                    )
+                await cpu_eater_lock.acquire()
+            LOGGER.info(f"Running merge cmd for: {dl_path}")
+            res = await ffmpeg.metadata_watermark_cmds(cmd, dl_path)
+            if res:
+                replace(temp_file, dl_path)
+
+    if checked:
+        cpu_eater_lock.release()
+    return dl_path
